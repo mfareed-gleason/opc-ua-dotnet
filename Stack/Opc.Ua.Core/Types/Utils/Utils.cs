@@ -1653,7 +1653,13 @@ namespace Opc.Ua
             try
             {
 #if !NETSTANDARD1_4 && !NETSTANDARD1_3
-                return File.GetLastWriteTimeUtc(typeof(Utils).GetTypeInfo().Assembly.Location);
+#pragma warning disable IL3000 // Avoid accessing Assembly file path when publishing as a single file
+                var location = typeof(Utils).GetTypeInfo().Assembly.Location;
+#pragma warning restore IL3000
+                if (!string.IsNullOrEmpty(location))
+                {
+                    return File.GetLastWriteTimeUtc(location);
+                }
 #endif
             }
             catch

@@ -54,7 +54,10 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <exception cref="ErrorExitException"></exception>
         public static async Task Main(string[] args)
         {
-            Console.WriteLine("OPC UA Console Reference Client");
+            Console.WriteLine("═══════════════════════════════════════════════════════════");
+            Console.WriteLine("  OPC UA Console Reference Client");
+            Console.WriteLine("═══════════════════════════════════════════════════════════");
+            Console.WriteLine();
 
             Console.WriteLine(
                 "OPC UA library: {0} @ {1} -- {2}",
@@ -70,7 +73,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
             // command line options
             bool showHelp = false;
-            bool autoAccept = false;
+            bool autoAccept = true; // Default to true for easy setup
             string username = null;
             byte[] userpassword = null;
             string userCertificateThumbprint = null;
@@ -85,8 +88,8 @@ namespace Quickstarts.ConsoleReferenceClient
             bool fetchall = false;
             bool jsonvalues = false;
             bool verbose = false;
-            bool subscribe = false;
-            bool noSecurity = false;
+            bool subscribe = true; // Default to subscribe mode
+            bool noSecurity = true; // Default to no security for easy setup
             byte[] pfxPassword = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
@@ -282,10 +285,35 @@ namespace Quickstarts.ConsoleReferenceClient
                 );
 
                 // connect Url?
-                var serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
+                Uri serverUrl = null;
                 if (!string.IsNullOrEmpty(extraArg))
                 {
                     serverUrl = new Uri(extraArg);
+                }
+                else
+                {
+                    // Prompt user for server URL
+                    Console.WriteLine("Enter OPC UA Server URL (or press Enter for default):");
+                    Console.Write("Server URL: ");
+                    string userInput = Console.ReadLine()?.Trim();
+
+                    if (!string.IsNullOrEmpty(userInput))
+                    {
+                        try
+                        {
+                            serverUrl = new Uri(userInput);
+                        }
+                        catch (Exception)
+                        {
+                            Console.WriteLine("Invalid URL format. Using default.");
+                            serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
+                        }
+                    }
+                    else
+                    {
+                        serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
+                        Console.WriteLine("Using default: {0}", serverUrl);
+                    }
                 }
 
                 // log console output to logger
@@ -465,11 +493,26 @@ namespace Quickstarts.ConsoleReferenceClient
                         uaClient.ReconnectPeriodExponentialBackoff = 60000;
                     }
 
+                    Console.WriteLine();
+                    Console.WriteLine("Attempting to connect to: {0}", serverUrl);
+                    Console.WriteLine("Please wait...");
+                    Console.WriteLine();
+
                     bool connected = await uaClient
                         .ConnectAsync(serverUrl.ToString(), !noSecurity, ct)
                         .ConfigureAwait(false);
                     if (connected)
                     {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("═══════════════════════════════════════════════════════════");
+                        Console.WriteLine("  ✓ CONNECTION SUCCESSFUL!");
+                        Console.WriteLine("═══════════════════════════════════════════════════════════");
+                        Console.ResetColor();
+                        Console.WriteLine();
+                        Console.WriteLine("Connected to: {0}", serverUrl);
+                        Console.WriteLine("Session ID: {0}", uaClient.Session.SessionId);
+                        Console.WriteLine();
+
                         logger.LogInformation("Connected! Ctrl-C to quit.");
 
                         // enable subscription transfer
@@ -767,12 +810,24 @@ namespace Quickstarts.ConsoleReferenceClient
                         logger.LogInformation("Client disconnected.");
 
                         await uaClient.DisconnectAsync(leakChannels, ct).ConfigureAwait(false);
+
+                        // Exit the loop after successful connection and monitoring
+                        quit = true;
                     }
                     else
                     {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("═══════════════════════════════════════════════════════════");
+                        Console.WriteLine("  ✗ CONNECTION FAILED!");
+                        Console.WriteLine("═══════════════════════════════════════════════════════════");
+                        Console.ResetColor();
+                        Console.WriteLine();
+                        Console.WriteLine("Could not connect to: {0}", serverUrl);
+                        Console.WriteLine();
+
                         logger.LogInformation(
-                            "Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
-                        quit = quitEvent.WaitOne(Math.Min(10_000, waitTime));
+                            "Could not connect to server!");
+                        quit = true; // Don't retry, just exit
                     }
                 } while (!quit);
 
@@ -780,11 +835,26 @@ namespace Quickstarts.ConsoleReferenceClient
             }
             catch (Exception ex)
             {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine();
+                Console.WriteLine("═══════════════════════════════════════════════════════════");
+                Console.WriteLine("  ✗ ERROR OCCURRED!");
+                Console.WriteLine("═══════════════════════════════════════════════════════════");
+                Console.ResetColor();
+                Console.WriteLine();
+                Console.WriteLine("Error: {0}", ex.Message);
+                Console.WriteLine();
                 logger.LogInformation("{Error}", ex.Message);
             }
             finally
             {
                 Utils.SilentDispose(reverseConnectManager);
+
+                // Wait for user input before closing
+                Console.WriteLine();
+                Console.WriteLine("═══════════════════════════════════════════════════════════");
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey(true);
             }
         }
 

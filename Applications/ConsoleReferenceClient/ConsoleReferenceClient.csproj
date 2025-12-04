@@ -9,6 +9,11 @@
     <Copyright>Copyright © 2004-2024 OPC Foundation, Inc</Copyright>
     <RootNamespace>Quickstarts.ConsoleReferenceClient</RootNamespace>
   </PropertyGroup>
+  <!-- Enable single-file publishing for easy deployment (only during publish) -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
   <ItemGroup>
     <Compile
       Include="..\ConsoleReferenceServer\ConsoleUtils.cs"
