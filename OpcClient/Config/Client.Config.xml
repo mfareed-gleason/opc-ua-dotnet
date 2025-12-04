@@ -34,7 +34,7 @@
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/rejected</StorePath>
     </RejectedCertificateStore>
 
-    <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
+    <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
     <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
     <RejectUnknownRevocationStatus>true</RejectUnknownRevocationStatus>
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
