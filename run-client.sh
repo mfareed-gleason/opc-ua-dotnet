@@ -1,7 +1,27 @@
 #!/bin/bash
 
+BUILD=false
+for arg in "$@"; do
+    if [[ "$arg" == "-b" ]] || [[ "$arg" == "--build" ]]; then
+        BUILD=true
+        break
+    fi
+done
+
+ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" != "-b" ]] && [[ "$arg" != "--build" ]]; then
+        ARGS+=("$arg")
+    fi
+done
+
 pushd Applications/ConsoleReferenceClient > /dev/null
 trap "popd > /dev/null" EXIT
 
-dotnet build ConsoleReferenceClient.csproj --framework "net10.0" --configuration Release
-./bin/Release/net10.0/ConsoleReferenceClient $@
+if [ "$BUILD" = true ]; then
+    echo "Building client..."
+    dotnet build ConsoleReferenceClient.csproj --framework "net10.0" --configuration Release
+    echo ""
+fi
+
+exec ./bin/Release/net10.0/ConsoleReferenceClient -lc "${ARGS[@]}"
