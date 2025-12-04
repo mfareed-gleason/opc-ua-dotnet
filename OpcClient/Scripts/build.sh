@@ -1,11 +1,7 @@
 #!/bin/bash
 
-echo "Building OPC Client..."
-echo ""
-
-cd "$(dirname "$0")/.."
-
 # Clean output
+cd "$(dirname "$0")/.."
 rm -rf Output
 
 # Detect current platform
@@ -30,8 +26,11 @@ else
 fi
 
 # Publish as self-contained executable
-echo "Building executable for $RID..."
-dotnet publish -c Release -r $RID --self-contained true
+echo "Building OPC Client for $RID..."
+echo "Building executable..."
+dotnet publish -c Release -f net10.0 -r $RID --self-contained true
+echo "Compiling libraries..."
+dotnet publish -c Release -f netstandard2.1 -r $RID
 
 if [ $? -eq 0 ]; then
     # Create Output directory
@@ -39,6 +38,7 @@ if [ $? -eq 0 ]; then
 
     # Copy files
     cp bin/Release/net10.0/$RID/publish/OpcClient Output/ 2>/dev/null || cp bin/Release/net10.0/$RID/publish/OpcClient.exe Output/
+    cp -r bin/Release/netstandard2.1/$RID/publish/* Output/ 2>/dev/null || cp -r bin/Release/netstandard2.1/$RID/publish/* Output/
     cp -r Config Output/
 
     echo ""

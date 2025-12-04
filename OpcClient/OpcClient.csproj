@@ -2,17 +2,28 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net10.0;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net10.0;netstandard2.1</TargetFrameworks>
     <Nullable>enable</Nullable>
     <LangVersion>13.0</LangVersion>
+  </PropertyGroup>
+
+  <!-- Exe configuration for net10.0 -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
   </PropertyGroup>
 
-  <!-- Exe only for net10.0, Library for netstandard2.0 -->
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+  <!-- Library configuration for netstandard2.1 -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
     <OutputType>Library</OutputType>
+    <PublishSingleFile>false</PublishSingleFile>
+    <SelfContained>false</SelfContained>
   </PropertyGroup>
+
+  <!-- Exclude Program.cs from netstandard2.1 build -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <Compile Remove="Program.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />

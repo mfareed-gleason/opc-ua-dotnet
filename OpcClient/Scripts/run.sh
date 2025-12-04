@@ -20,4 +20,4 @@ if ! lsof -i :62541 > /dev/null 2>&1; then
 fi
 
 # Run (local testing)
-exec dotnet run --no-build -c Release "$@"
+exec dotnet run --no-build -c Release -f net10.0 "$@"
