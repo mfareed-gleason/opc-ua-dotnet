@@ -49,6 +49,90 @@ namespace Quickstarts.ConsoleReferenceClient
     public static class Program
     {
         /// <summary>
+        /// Reads and displays the three simple variables from the server.
+        /// </summary>
+        private static async Task ReadSimpleVariablesAsync(ISession session, CancellationToken ct)
+        {
+            try
+            {
+                Console.WriteLine("════════════════════════════════════════════════════════════");
+                Console.WriteLine("  Reading Simple Variables");
+                Console.WriteLine("════════════════════════════════════════════════════════════");
+                Console.WriteLine();
+
+                // Find the namespace index for our custom namespace
+                int namespaceIndex = session.NamespaceUris.GetIndex("http://opcfoundation.org/SimpleVariables");
+                if (namespaceIndex < 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("✗ ERROR: SimpleVariables namespace not found on server!");
+                    Console.ResetColor();
+                    return;
+                }
+
+                // Create NodeIds for our three variables
+                var stringVar1NodeId = new NodeId("StringVariable1", (ushort)namespaceIndex);
+                var stringVar2NodeId = new NodeId("StringVariable2", (ushort)namespaceIndex);
+                var intVarNodeId = new NodeId("IntegerVariable", (ushort)namespaceIndex);
+
+                // Read the three variables
+                var nodesToRead = new ReadValueIdCollection
+                {
+                    new ReadValueId { NodeId = stringVar1NodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = stringVar2NodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = intVarNodeId, AttributeId = Attributes.Value }
+                };
+
+                ReadResponse response = await session.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Both,
+                    nodesToRead,
+                    ct).ConfigureAwait(false);
+
+                ClientBase.ValidateResponse(response.Results, nodesToRead);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, nodesToRead);
+
+                // Display the results
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("String Variable 1:");
+                Console.ResetColor();
+                Console.WriteLine("  Value: {0}", response.Results[0].Value);
+                Console.WriteLine("  Status: {0}", response.Results[0].StatusCode);
+                Console.WriteLine("  Timestamp: {0}", response.Results[0].SourceTimestamp);
+                Console.WriteLine();
+
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("String Variable 2:");
+                Console.ResetColor();
+                Console.WriteLine("  Value: {0}", response.Results[1].Value);
+                Console.WriteLine("  Status: {0}", response.Results[1].StatusCode);
+                Console.WriteLine("  Timestamp: {0}", response.Results[1].SourceTimestamp);
+                Console.WriteLine();
+
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("Integer Variable:");
+                Console.ResetColor();
+                Console.WriteLine("  Value: {0}", response.Results[2].Value);
+                Console.WriteLine("  Status: {0}", response.Results[2].StatusCode);
+                Console.WriteLine("  Timestamp: {0}", response.Results[2].SourceTimestamp);
+                Console.WriteLine();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("✓ Successfully read all three variables!");
+                Console.ResetColor();
+                Console.WriteLine("════════════════════════════════════════════════════════════");
+                Console.WriteLine();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("✗ ERROR reading variables: {0}", ex.Message);
+                Console.ResetColor();
+            }
+        }
+
+        /// <summary>
         /// Main entry point.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
@@ -515,6 +599,9 @@ namespace Quickstarts.ConsoleReferenceClient
 
                         logger.LogInformation("Connected! Ctrl-C to quit.");
 
+                        // Read the three simple variables from the server
+                        await ReadSimpleVariablesAsync(uaClient.Session, ct).ConfigureAwait(false);
+
                         // enable subscription transfer
                         uaClient.ReconnectPeriod = 1000;
                         uaClient.ReconnectPeriodExponentialBackoff = 10000;
@@ -726,41 +813,14 @@ namespace Quickstarts.ConsoleReferenceClient
                         }
                         else
                         {
-                            int quitTimeout = 65_000;
-                            if (enableDurableSubscriptions)
-                            {
-                                quitTimeout = 150_000;
-                                uaClient.ReconnectPeriod = 500_000;
-                            }
-
-                            NodeId sessionNodeId = uaClient.Session.SessionId;
-                            // Run tests for available methods on reference server.
-                            await samples.ReadNodesAsync(
-                                uaClient.Session,
-                                ct).ConfigureAwait(false);
-                            await samples.WriteNodesAsync(
-                                uaClient.Session,
-                                ct).ConfigureAwait(false);
-                            await samples.BrowseAsync(
-                                uaClient.Session,
-                                ct).ConfigureAwait(false);
-                            await samples.CallMethodAsync(
-                                uaClient.Session,
-                                ct).ConfigureAwait(false);
-                            await samples.EnableEventsAsync(
-                                uaClient.Session,
-                                (uint)quitTimeout,
-                                ct).ConfigureAwait(false);
-                            await samples.SubscribeToDataChangesAsync(
-                                uaClient.Session,
-                                60_000,
-                                enableDurableSubscriptions,
-                                ct).ConfigureAwait(false);
-
-                            logger.LogInformation("Waiting...");
+                            // Skip all the reference server simulation tests
+                            // Just read our simple variables and exit
+                            logger.LogInformation("Skipping reference server tests. Press Ctrl-C to exit.");
+                            quit = true;
 
                             // Wait for some DataChange notifications from MonitoredItems
                             int waitCounters = 0;
+                            const int quitTimeout = 65_000;
                             const int checkForWaitTime = 1000;
                             const int closeSessionTime = checkForWaitTime * 15;
                             const int restartSessionTime = checkForWaitTime * 45;

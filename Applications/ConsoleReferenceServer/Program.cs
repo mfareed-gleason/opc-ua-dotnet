@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Server;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -158,8 +159,8 @@ namespace Quickstarts.ReferenceServer
                 logger.LogInformation("Check the certificate.");
                 await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
 
-                // Create and add the node managers
-                server.Create(Servers.Utils.NodeManagerFactories);
+                // Create and add the simple node manager with 3 variables
+                server.Create([new SimpleNodeManagerFactory()]);
 
                 // enable provisioning mode if requested
                 if (provisioningMode)
