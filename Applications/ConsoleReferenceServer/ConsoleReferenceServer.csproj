@@ -10,6 +10,13 @@
     <RootNamespace>Quickstarts</RootNamespace>
     <UserSecretsId>46345736-a30f-4466-b3bb-42548ecfaacc</UserSecretsId>
   </PropertyGroup>
+
+  <!-- Enable single-file publishing for easy deployment (only during publish) -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Remove="Quickstarts.MonoReferenceServer.Config.xml" />
   </ItemGroup>

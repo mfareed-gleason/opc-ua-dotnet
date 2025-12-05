@@ -61,11 +61,11 @@ namespace Quickstarts.ReferenceServer
 
             // command line options
             bool showHelp = false;
-            bool autoAccept = false;
-            bool logConsole = false;
-            bool appLog = false;
+            bool autoAccept = true;
+            bool logConsole = true;
+            bool appLog = true;
             bool fileLog = false;
-            bool renewCertificate = false;
+            bool renewCertificate = true;
             bool shadowConfig = false;
             bool samplingGroups = false;
             bool cttMode = false;
