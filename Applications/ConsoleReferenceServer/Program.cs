@@ -71,6 +71,7 @@ namespace Quickstarts.ReferenceServer
             bool samplingGroups = false;
             bool cttMode = false;
             bool provisioningMode = false;
+            bool simulateVariables = false;
             char[] password = null;
             int timeout = -1;
 
@@ -99,6 +100,11 @@ namespace Quickstarts.ReferenceServer
                     "provision",
                     "start server in provisioning mode with limited namespace for certificate provisioning",
                     p => provisioningMode = p != null
+                },
+                {
+                    "simulate",
+                    "enable simulation mode to automatically update SimpleVariables every 2 seconds",
+                    sim => simulateVariables = sim != null
                 }
             };
 
@@ -160,7 +166,7 @@ namespace Quickstarts.ReferenceServer
                 await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
 
                 // Create and add the simple node manager with 3 variables
-                server.Create([new SimpleNodeManagerFactory()]);
+                server.Create([new SimpleNodeManagerFactory(simulateVariables)]);
 
                 // enable provisioning mode if requested
                 if (provisioningMode)

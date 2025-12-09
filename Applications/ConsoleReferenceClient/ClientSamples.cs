@@ -1448,6 +1448,26 @@ namespace Quickstarts
                     notification.PublishTime,
                     notification.SequenceNumber,
                     notification.MonitoredItems.Count);
+
+                // Output structured data for UI parsing
+                foreach (MonitoredItemNotification itemNotification in notification.MonitoredItems)
+                {
+                    MonitoredItem item = subscription.FindItemByClientHandle(itemNotification.ClientHandle);
+                    if (item != null)
+                    {
+                        var data = new
+                        {
+                            nodeId = item.ResolvedNodeId?.ToString() ?? "unknown",
+                            displayName = item.DisplayName ?? item.ResolvedNodeId?.ToString() ?? "unknown",
+                            value = itemNotification.Value?.Value,
+                            type = itemNotification.Value?.Value?.GetType().Name ?? "null",
+                            timestamp = itemNotification.Value?.SourceTimestamp.ToString("o") ?? DateTime.UtcNow.ToString("o")
+                        };
+
+                        string json = JsonConvert.SerializeObject(data);
+                        Console.WriteLine(json);
+                    }
+                }
             }
             catch (Exception ex)
             {

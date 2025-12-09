@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -40,10 +41,17 @@ namespace Quickstarts.ReferenceServer
     /// </summary>
     public class SimpleNodeManagerFactory : INodeManagerFactory
     {
+        private readonly bool m_enableSimulation;
+
+        public SimpleNodeManagerFactory(bool enableSimulation = false)
+        {
+            m_enableSimulation = enableSimulation;
+        }
+
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new SimpleNodeManager(server, configuration);
+            return new SimpleNodeManager(server, configuration, m_enableSimulation);
         }
 
         /// <inheritdoc/>
@@ -55,12 +63,20 @@ namespace Quickstarts.ReferenceServer
     /// </summary>
     public class SimpleNodeManager : CustomNodeManager2
     {
+        private Timer m_simulationTimer;
+        private BaseDataVariableState m_stringVar1;
+        private BaseDataVariableState m_stringVar2;
+        private BaseDataVariableState m_intVar;
+        private readonly bool m_enableSimulation;
+        private int m_counter;
+
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
         public SimpleNodeManager(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            bool enableSimulation = false)
             : base(
                   server,
                   configuration,
@@ -68,6 +84,19 @@ namespace Quickstarts.ReferenceServer
                   server.Telemetry.CreateLogger<SimpleNodeManager>(),
                   "http://opcfoundation.org/SimpleVariables")
         {
+            m_enableSimulation = enableSimulation;
+        }
+
+        /// <summary>
+        /// Disposes the node manager.
+        /// </summary>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_simulationTimer?.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
         /// <summary>
@@ -89,33 +118,72 @@ namespace Quickstarts.ReferenceServer
                 references.Add(new NodeStateReference(ReferenceTypes.Organizes, false, myFolder.NodeId));
 
                 // Create two string variables
-                BaseDataVariableState stringVar1 = CreateVariable(
+                m_stringVar1 = CreateVariable(
                     myFolder,
                     "StringVariable1",
                     "String Variable 1",
                     DataTypeIds.String,
                     ValueRanks.Scalar);
-                stringVar1.Value = "Hello from Variable 1";
+                m_stringVar1.Value = "Hello from Variable 1";
 
-                BaseDataVariableState stringVar2 = CreateVariable(
+                m_stringVar2 = CreateVariable(
                     myFolder,
                     "StringVariable2",
                     "String Variable 2",
                     DataTypeIds.String,
                     ValueRanks.Scalar);
-                stringVar2.Value = "Hello from Variable 2";
+                m_stringVar2.Value = "Hello from Variable 2";
 
                 // Create one integer variable
-                BaseDataVariableState intVar = CreateVariable(
+                m_intVar = CreateVariable(
                     myFolder,
                     "IntegerVariable",
                     "Integer Variable",
                     DataTypeIds.Int32,
                     ValueRanks.Scalar);
-                intVar.Value = 42;
+                m_intVar.Value = 42;
 
                 // Add the nodes to the system
                 AddPredefinedNode(SystemContext, myFolder);
+
+                // Start simulation timer if enabled via command line
+                if (m_enableSimulation)
+                {
+                    m_counter = 0;
+                    m_simulationTimer = new Timer(DoSimulation, null, 2000, 2000);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates the variable values periodically.
+        /// </summary>
+        private void DoSimulation(object state)
+        {
+            try
+            {
+                lock (Lock)
+                {
+                    m_counter++;
+
+                    // Update string variables
+                    m_stringVar1.Value = $"Value {m_counter} at {DateTime.Now:HH:mm:ss}";
+                    m_stringVar1.Timestamp = DateTime.UtcNow;
+                    m_stringVar1.ClearChangeMasks(SystemContext, false);
+
+                    m_stringVar2.Value = $"Updated {m_counter} times";
+                    m_stringVar2.Timestamp = DateTime.UtcNow;
+                    m_stringVar2.ClearChangeMasks(SystemContext, false);
+
+                    // Update integer variable (count up)
+                    m_intVar.Value = m_counter;
+                    m_intVar.Timestamp = DateTime.UtcNow;
+                    m_intVar.ClearChangeMasks(SystemContext, false);
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Unexpected error during simulation.");
             }
         }
 
