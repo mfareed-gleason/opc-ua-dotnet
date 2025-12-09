@@ -121,27 +121,27 @@ namespace Quickstarts.ReferenceServer
                 m_stringVar1 = CreateVariable(
                     myFolder,
                     "StringVariable1",
-                    "String Variable 1",
+                    "Part Number",
                     DataTypeIds.String,
                     ValueRanks.Scalar);
-                m_stringVar1.Value = "Hello from Variable 1";
+                m_stringVar1.Value = string.Empty;
 
                 m_stringVar2 = CreateVariable(
                     myFolder,
                     "StringVariable2",
-                    "String Variable 2",
+                    "Order Number",
                     DataTypeIds.String,
                     ValueRanks.Scalar);
-                m_stringVar2.Value = "Hello from Variable 2";
+                m_stringVar2.Value = string.Empty;
 
                 // Create one integer variable
                 m_intVar = CreateVariable(
                     myFolder,
                     "IntegerVariable",
-                    "Integer Variable",
+                    "Production Count",
                     DataTypeIds.Int32,
                     ValueRanks.Scalar);
-                m_intVar.Value = 42;
+                m_intVar.Value = 0;
 
                 // Add the nodes to the system
                 AddPredefinedNode(SystemContext, myFolder);
