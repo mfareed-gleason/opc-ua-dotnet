@@ -29,7 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Threading;
+using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -68,6 +71,7 @@ namespace Quickstarts.ReferenceServer
         private BaseDataVariableState m_stringVar2;
         private BaseDataVariableState m_intVar;
         private readonly bool m_enableSimulation;
+        private readonly string m_persistenceFilePath;
         private int m_counter;
 
         /// <summary>
@@ -85,6 +89,7 @@ namespace Quickstarts.ReferenceServer
                   "http://opcfoundation.org/SimpleVariables")
         {
             m_enableSimulation = enableSimulation;
+            m_persistenceFilePath = ResolvePersistenceFilePath(configuration);
         }
 
         /// <summary>
@@ -95,6 +100,7 @@ namespace Quickstarts.ReferenceServer
             if (disposing)
             {
                 m_simulationTimer?.Dispose();
+                PersistCurrentState();
             }
             base.Dispose(disposing);
         }
@@ -125,6 +131,7 @@ namespace Quickstarts.ReferenceServer
                     DataTypeIds.String,
                     ValueRanks.Scalar);
                 m_stringVar1.Value = string.Empty;
+                m_stringVar1.OnSimpleWriteValue = OnWritePersistedValue;
 
                 m_stringVar2 = CreateVariable(
                     myFolder,
@@ -133,6 +140,7 @@ namespace Quickstarts.ReferenceServer
                     DataTypeIds.String,
                     ValueRanks.Scalar);
                 m_stringVar2.Value = string.Empty;
+                m_stringVar2.OnSimpleWriteValue = OnWritePersistedValue;
 
                 // Create one integer variable
                 m_intVar = CreateVariable(
@@ -142,6 +150,9 @@ namespace Quickstarts.ReferenceServer
                     DataTypeIds.Int32,
                     ValueRanks.Scalar);
                 m_intVar.Value = 0;
+                m_intVar.OnSimpleWriteValue = OnWritePersistedValue;
+
+                RestorePersistedState();
 
                 // Add the nodes to the system
                 AddPredefinedNode(SystemContext, myFolder);
@@ -185,6 +196,149 @@ namespace Quickstarts.ReferenceServer
             {
                 m_logger.LogError(e, "Unexpected error during simulation.");
             }
+        }
+
+        private ServiceResult OnWritePersistedValue(ISystemContext context, NodeState node, ref object value)
+        {
+            try
+            {
+                PersistCurrentState(node, value);
+                return ServiceResult.Good;
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Failed to persist value written to node {NodeId}.", node?.NodeId);
+                return StatusCodes.BadUnexpectedError;
+            }
+        }
+
+        private void RestorePersistedState()
+        {
+            if (string.IsNullOrWhiteSpace(m_persistenceFilePath) || !File.Exists(m_persistenceFilePath))
+            {
+                return;
+            }
+
+            try
+            {
+                XDocument document = XDocument.Load(m_persistenceFilePath);
+                XElement root = document.Element("SimpleNodeManagerState");
+
+                if (root == null)
+                {
+                    return;
+                }
+
+                m_stringVar1.Value = (string)root.Element("StringVariable1") ?? string.Empty;
+                m_stringVar1.Timestamp = DateTime.UtcNow;
+                m_stringVar1.StatusCode = StatusCodes.Good;
+
+                m_stringVar2.Value = (string)root.Element("StringVariable2") ?? string.Empty;
+                m_stringVar2.Timestamp = DateTime.UtcNow;
+                m_stringVar2.StatusCode = StatusCodes.Good;
+
+                m_intVar.Value = (int?)root.Element("IntegerVariable") ?? 0;
+                m_intVar.Timestamp = DateTime.UtcNow;
+                m_intVar.StatusCode = StatusCodes.Good;
+
+                m_logger.LogInformation(
+                    "Loaded persisted simple variable state from {PersistenceFilePath}.",
+                    m_persistenceFilePath);
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(
+                    e,
+                    "Failed to restore simple variable state from {PersistenceFilePath}.",
+                    m_persistenceFilePath);
+            }
+        }
+
+        private void PersistCurrentState(NodeState pendingNode = null, object pendingValue = null)
+        {
+            if (string.IsNullOrWhiteSpace(m_persistenceFilePath) ||
+                m_stringVar1 == null ||
+                m_stringVar2 == null ||
+                m_intVar == null)
+            {
+                return;
+            }
+
+            string directoryPath = Path.GetDirectoryName(m_persistenceFilePath);
+
+            if (!string.IsNullOrWhiteSpace(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            XDocument document = new(
+                new XElement(
+                    "SimpleNodeManagerState",
+                    new XElement(
+                        "StringVariable1",
+                        GetPersistedStringValue(m_stringVar1, pendingNode, pendingValue)),
+                    new XElement(
+                        "StringVariable2",
+                        GetPersistedStringValue(m_stringVar2, pendingNode, pendingValue)),
+                    new XElement(
+                        "IntegerVariable",
+                        GetPersistedIntegerValue(m_intVar, pendingNode, pendingValue))));
+
+            string temporaryPath = m_persistenceFilePath + ".tmp";
+            document.Save(temporaryPath);
+
+            if (File.Exists(m_persistenceFilePath))
+            {
+                File.Replace(temporaryPath, m_persistenceFilePath, null);
+                return;
+            }
+
+            File.Move(temporaryPath, m_persistenceFilePath);
+        }
+
+        private static string ResolvePersistenceFilePath(ApplicationConfiguration configuration)
+        {
+            string configuredPath = configuration?.ServerConfiguration?.NodeManagerSaveFile;
+
+            if (string.IsNullOrWhiteSpace(configuredPath))
+            {
+                return string.Empty;
+            }
+
+            if (Path.IsPathRooted(configuredPath))
+            {
+                return Path.GetFullPath(configuredPath);
+            }
+
+            return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configuredPath));
+        }
+
+        private static string GetPersistedStringValue(
+            BaseDataVariableState variable,
+            NodeState pendingNode,
+            object pendingValue)
+        {
+            if (ReferenceEquals(variable, pendingNode))
+            {
+                return pendingValue?.ToString() ?? string.Empty;
+            }
+
+            return variable.Value?.ToString() ?? string.Empty;
+        }
+
+        private static int GetPersistedIntegerValue(
+            BaseDataVariableState variable,
+            NodeState pendingNode,
+            object pendingValue)
+        {
+            object valueToConvert = ReferenceEquals(variable, pendingNode) ? pendingValue : variable.Value;
+
+            if (valueToConvert == null)
+            {
+                return 0;
+            }
+
+            return Convert.ToInt32(valueToConvert, CultureInfo.InvariantCulture);
         }
 
         /// <summary>

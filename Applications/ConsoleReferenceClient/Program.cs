@@ -136,6 +136,36 @@ namespace Quickstarts.ConsoleReferenceClient
             }
         }
 
+        private static async Task EmitInitialVariableValuesAsync(
+            ISession session,
+            (string Id, string NodeName)[] variables,
+            NodeId[] nodeIds,
+            CancellationToken ct)
+        {
+            var nodesToRead = new ReadValueIdCollection();
+
+            foreach (NodeId nodeId in nodeIds)
+            {
+                nodesToRead.Add(new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value });
+            }
+
+            ReadResponse response = await session.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                ct).ConfigureAwait(false);
+
+            ClientBase.ValidateResponse(response.Results, nodesToRead);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, nodesToRead);
+
+            for (int i = 0; i < variables.Length && i < response.Results.Count; i++)
+            {
+                var data = new { Id = variables[i].Id, Value = response.Results[i].Value };
+                Console.WriteLine(JsonConvert.SerializeObject(data));
+            }
+        }
+
         /// <summary>
         /// Main entry point.
         /// </summary>
@@ -337,6 +367,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 NodeId[] nodeIds = [.. variables.Select(v => new NodeId(v.NodeName, (ushort)namespaceIndex))];
                 if (monitorMode)
                 {
+                    await EmitInitialVariableValuesAsync(uaClient.Session, variables, nodeIds, ct).ConfigureAwait(false);
+
                     // Monitor mode: subscribe and output JSON
                     var subscription = new Subscription(uaClient.Session.DefaultSubscription)
                     {
