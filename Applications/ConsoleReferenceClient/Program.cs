@@ -174,6 +174,7 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             // Check if monitor mode is requested before any output
             bool quietMode = args.Contains("--monitor") || args.Contains("-monitor");
+            bool useSecurity = false;
 
             if (!quietMode)
             {
@@ -299,14 +300,18 @@ namespace Quickstarts.ConsoleReferenceClient
                 // Setup logging (suppress in monitor mode)
                 telemetry.ConfigureLogging(config, applicationName, !monitorMode, false, !monitorMode, LogLevel.Information);
 
-                // Check certificate
-                bool haveAppCertificate = await application
-                    .CheckApplicationInstanceCertificatesAsync(false)
-                    .ConfigureAwait(false);
-
-                if (!haveAppCertificate)
+                // For the current production path we connect anonymously with SecurityPolicy None,
+                // so a client application certificate is not required.
+                if (useSecurity)
                 {
-                    throw new ErrorExitException("Application instance certificate invalid!", ExitCode.ErrorCertificate);
+                    bool haveAppCertificate = await application
+                        .CheckApplicationInstanceCertificatesAsync(false)
+                        .ConfigureAwait(false);
+
+                    if (!haveAppCertificate)
+                    {
+                        throw new ErrorExitException("Application instance certificate invalid!", ExitCode.ErrorCertificate);
+                    }
                 }
 
                 // Setup Ctrl-C handler
@@ -331,11 +336,15 @@ namespace Quickstarts.ConsoleReferenceClient
                 }
 
                 bool connected = await uaClient
-                    .ConnectAsync(serverUrl.ToString(), false, ct) // No security for simplicity
+                    .ConnectAsync(serverUrl.ToString(), useSecurity, ct)
                     .ConfigureAwait(false);
                 if (!connected)
                 {
-                    if (!monitorMode)
+                    if (monitorMode)
+                    {
+                        Console.Error.WriteLine("CONNECTION FAILED to: {0}", serverUrl);
+                    }
+                    else
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("CONNECTION FAILED to: {0}", serverUrl);
@@ -356,7 +365,11 @@ namespace Quickstarts.ConsoleReferenceClient
                 int namespaceIndex = uaClient.Session.NamespaceUris.GetIndex(SimpleVariablesNamespace);
                 if (namespaceIndex < 0)
                 {
-                    if (!monitorMode)
+                    if (monitorMode)
+                    {
+                        Console.Error.WriteLine("Error: Namespace '{0}' not found", SimpleVariablesNamespace);
+                    }
+                    else
                     {
                         Console.WriteLine($"Error: Namespace '{SimpleVariablesNamespace}' not found");
                     }
@@ -437,7 +450,11 @@ namespace Quickstarts.ConsoleReferenceClient
             }
             catch (Exception ex)
             {
-                if (!quietMode)
+                if (quietMode)
+                {
+                    Console.Error.WriteLine("ERROR: {0}", ex.Message);
+                }
+                else
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("ERROR: {0}", ex.Message);
@@ -446,7 +463,7 @@ namespace Quickstarts.ConsoleReferenceClient
             }
             finally
             {
-                if (!quietMode)
+                if (!quietMode && !Console.IsInputRedirected)
                 {
                     Console.WriteLine("\nPress any key to exit...");
                     Console.ReadKey(true);
